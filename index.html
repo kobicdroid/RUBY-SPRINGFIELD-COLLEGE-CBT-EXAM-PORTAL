@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
     <title>RUBY SRINGFIELD COLLEGE - CBT PORTAL</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
@@ -284,7 +286,7 @@
             <button class="num-key" onclick="cIn('7')">7</button><button class="num-key" onclick="cIn('8')">8</button><button class="num-key" onclick="cIn('9')">9</button><button class="op-key" onclick="cIn('/')">÷</button>
             <button class="num-key" onclick="cIn('4')">4</button><button class="num-key" onclick="cIn('5')">5</button><button class="num-key" onclick="cIn('6')">6</button><button class="op-key" onclick="cIn('*')">×</button>
             <button class="num-key" onclick="cIn('1')">1</button><button class="num-key" onclick="cIn('2')">2</button><button class="num-key" onclick="cIn('3')">3</button><button class="op-key" onclick="cIn('-')">-</button>
-            <button class="op-key" style="background:var(--danger);" onclick="cCl()">C</button><button class="num-key" onclick="cIn('0')">0</button><button class="op-key" onclick="cIn('.')">.</button><button class="op-key" onclick="cIn('+')">+</button>
+            <button class="op-key" style="background:var(--danger);" onclick="cCl()">C</button><button class="num-key" onclick="cIn('0')">0</button><button class="num-key" onclick="cIn('.')">.</button><button class="op-key" onclick="cIn('+')">+</button>
             <button class="op-key" style="grid-column: span 4; background:var(--success);" onclick="cEv()">=</button>
         </div>
     </div>
@@ -318,10 +320,9 @@
             <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" width="60">
         </div>
         <h2 style="color:var(--success); text-align:center; margin-top:0;">EXAMINATION COMPLETED</h2>
-        <p style="text-align:center; color:#555;">The system has successfully captured your response. Your attempt summary is as follows:</p>
         <div id="attempt-summary" style="margin-top:25px; border-top: 2px solid #eee;"></div>
         <div style="background: #fdfdfd; padding: 15px; border-radius: 8px; border: 1px dashed #ccc; margin-top: 20px; font-size: 0.85rem; color: #666; text-align: center;">
-            Official scores are currently being verified and will be released by the administration.
+            Official digital record of performance. Securely stored and validated.
         </div>
         <button class="btn btn-primary" style="width:100%; margin-top:20px;" onclick="goToFinal()">SECURELY PROCEED</button>
     </div>
@@ -393,8 +394,7 @@
 </div>
 
 <script>
-    // --- UPDATED SCRIPT_URL TO MATCH YOUR DEPLOYMENT ---
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6dFX-xZMwYGLqO_lb1UPTGL8nFVqP-7KeiTNnKsdpzLYHO1pNQMb_Y5oJpzWMG6A8-Q/exec";
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6dFX-xZMwYGLqO_lb1UPTGL8nFVqP-7KeiTNnKsdpzLYHO1pNQMb_Y5oJpzWMG6A8-Q/exec"; 
     
     let CANDIDATE_PROFILE = { name: "", reg: "", dept: "" };
     let tabSwitchCount = 0; 
@@ -498,8 +498,9 @@
         try {
             const response = await fetch(`${SCRIPT_URL}?action=checkAuth&reg=${encodeURIComponent(reg)}&pin=${encodeURIComponent(pin)}&t=${Date.now()}`);
             const result = await response.json();
-            if (result.status === "Authorized") {
-                msg.innerHTML = `<span style="color:var(--success)">Authorized! Generating PDF...</span>`;
+            // SHUTDOWN MOVE: Allow PDF if status is Authorized OR Unauthorized (Immediate release)
+            if (result.status === "Authorized" || result.status === "Unauthorized") {
+                msg.innerHTML = `<span style="color:var(--success)">Processing Professional Result Slip...</span>`;
                 CANDIDATE_PROFILE.name = result.data.name;
                 CANDIDATE_PROFILE.reg = result.data.reg;
                 document.getElementById('final-cand-name').innerText = CANDIDATE_PROFILE.name;
@@ -512,9 +513,6 @@
             } else if (result.status === "WrongPIN") {
                 msg.innerHTML = `<span style="color:var(--danger)">ERROR: Incorrect Security PIN. Access Denied.</span>`;
                 btn.innerText = "RE-TRY ACCESS";
-            } else if (result.status === "Unauthorized") {
-                msg.innerHTML = `<span style="color:var(--tag-color)">NOTICE: Your result has not been authorized for release yet.</span>`;
-                btn.innerText = "RE-CHECK STATUS";
             } else {
                 msg.innerHTML = `<span style="color:var(--danger)">Registration record not found.</span>`;
                 btn.innerText = "CHECK & PRINT RESULT";
@@ -604,7 +602,20 @@
         doc.text(splitFooter, pageWidth / 2, pageHeight - 18, { align: "center" });
         doc.text("Powered by SumiLogic CBT Engine", pageWidth / 2, pageHeight - 13, { align: "center" });
 
-        doc.save(`CBT_Result_${studentData.reg}.pdf`);
+        // SHUTDOWN MOVE: Improved blob-trigger for APK/Mobile permissions
+        try {
+            const pdfBlob = doc.output('blob');
+            const pdfUrl = URL.createObjectURL(pdfBlob);
+            const downloadLink = document.createElement("a");
+            downloadLink.href = pdfUrl;
+            downloadLink.download = `CBT_Result_${studentData.reg}.pdf`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+            URL.revokeObjectURL(pdfUrl);
+        } catch (e) {
+            doc.save(`CBT_Result_${studentData.reg}.pdf`);
+        }
     }
 
     function saveProgress() {
@@ -655,13 +666,7 @@
                 document.getElementById('loading-overlay').style.display = 'none'; 
                 return alert("ACCESS DENIED: " + authStatus.message); 
             }
-            if (authStatus.submitted === true) { 
-                document.getElementById('loading-overlay').style.display = 'none'; 
-                alert("ACCESS DENIED: You have already completed this examination."); 
-                toggleResultMode(true); 
-                document.getElementById('check-reg').value = reg; 
-                return; 
-            }
+            // SHUTDOWN MOVE: Removed "submitted: true" check to allow multiple exam attempts
 
             CANDIDATE_PROFILE.name = (authStatus.name && authStatus.name !== "CANDIDATE") ? authStatus.name.toUpperCase() : nameInput.toUpperCase();
             CANDIDATE_PROFILE.reg = reg;
@@ -764,7 +769,7 @@
         document.getElementById('confirm-modal').style.display = 'none'; 
         document.getElementById('submit-loader').style.display = 'flex';
         
-        let finalScores = {}, aggregateTotal = 0, summaryHtml = "<h4>JAMB ATTEMPT SUMMARY:</h4>";
+        let finalScores = {}, aggregateTotal = 0, summaryHtml = "<h4>CANDIDATE ATTEMPT BREAKDOWN:</h4>";
         Object.keys(examData).forEach(subject => {
             let correct = 0, attempted = 0, totalQs = examData[subject].length;
             examData[subject].forEach((q, idx) => { if (userAnswers[subject][idx]) attempted++; const correctAnswer = (q.ans || q.answer || q.Correct || "").toString().trim().toUpperCase(); if (userAnswers[subject][idx] === correctAnswer) correct++; });
@@ -772,24 +777,29 @@
             summaryHtml += `<div class="summary-row"><span>${subject} (${totalQs} Qs)</span><span>Raw: ${correct} | <b>Scaled: ${scaled}</b></span></div>`;
         });
 
-        const payload = { 
-            name: CANDIDATE_PROFILE.name, 
-            reg: CANDIDATE_PROFILE.reg, 
-            dept: CANDIDATE_PROFILE.dept, 
-            scores: finalScores, 
-            total: aggregateTotal, 
-            tabSwitches: tabSwitchCount 
-        };
+        const payload = { name: CANDIDATE_PROFILE.name, reg: CANDIDATE_PROFILE.reg, dept: CANDIDATE_PROFILE.dept, scores: finalScores, total: aggregateTotal, tabSwitches: tabSwitchCount };
 
         try {
             const response = await fetch(SCRIPT_URL, { method: "POST", body: JSON.stringify(payload) });
             const result = await response.json(); 
             serverGeneratedPin = result.pin;
             localStorage.removeItem("cbt_recovery_" + CANDIDATE_PROFILE.reg);
+            
             document.getElementById('submit-loader').style.display = 'none'; 
             document.getElementById('exam-page').style.display = 'none';
             document.getElementById('result-page').style.display = 'flex'; 
-            document.getElementById('attempt-summary').innerHTML = summaryHtml;
+
+            // SHUTDOWN MOVE: Professional Score Dashboard Display
+            let scoreDashboard = `
+                <div style="background:var(--primary); color:white; padding:25px; border-radius:15px; text-align:center; margin-bottom:25px; box-shadow:0 4px 15px rgba(0,0,0,0.2);">
+                    <small style="text-transform:uppercase; letter-spacing:1.5px; opacity:0.8; font-weight:bold;">Aggregate Performance Score</small>
+                    <h1 style="font-size:3.5rem; margin:10px 0; font-family: 'Segoe UI Black', sans-serif;">${aggregateTotal}</h1>
+                    <div style="height:3px; background:var(--gold); width:60px; margin:15px auto;"></div>
+                    <p style="font-size:0.9rem; margin:0; opacity:0.9;">System Status: Examination Record Logged Successfully</p>
+                </div>
+                ${summaryHtml}
+            `;
+            document.getElementById('attempt-summary').innerHTML = scoreDashboard;
         } catch(e) { 
             alert("SUBMISSION ERROR. Please inform the supervisor."); 
             document.getElementById('submit-loader').style.display = 'none'; 
@@ -889,5 +899,4 @@
     function cEv() { try { cV = eval(cV).toString(); document.getElementById('calc-display').innerText = cV; } catch { cCl(); } }
 </script>
 </body>
-
 </html>
